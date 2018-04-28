@@ -1,4 +1,4 @@
-#TALO Protocol - Career Management Protocol
+# TALO Protocol - Career Management Protocol
 
 This is the repository for TALO Protocol implemented in Solidity for deployment on Ethereum Network.
 In this repository you can find our implementation for:
@@ -10,3 +10,4 @@ For more information about TALO Protocol:
 - Visit our website at: https://talo.io
 - Our lightpaper: https://talo.io/lightpaper
 - Our whitepaper:
+
