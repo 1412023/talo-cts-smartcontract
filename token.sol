@@ -708,6 +708,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
     uint256 constant public endTime = 1535759999;       // 08/31/2018 @ 11:59pm (UTC)
     address public beneficiary = 0x0;                   // address to receive all ether contributions
     address public tokenAddress = 0x0;                  // address of the token itself
+    uint256 public conversionRate = 12000;              // conversionRate from ETHER to TALO
     
     // Bonus const
     uint256[] internal bonusTokenRanges = [40 * 10**6 * TALO_UNIT, 100 * 10**6 * TALO_UNIT, 180 * 10**6 * TALO_UNIT, 280 * 10**6 * TALO_UNIT, 400 * 10**6 * TALO_UNIT];
@@ -731,7 +732,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
 
     /**
         @dev constructor
-        @param _beneficiary                         Address that will be receiving the ETH contributed
+        @param _beneficiary Address that will be receiving the ETH contributed
     */
     constructor(address _beneficiary) validAddress(_beneficiary) public
     {
@@ -757,7 +758,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
     /**
         @dev Sets the TALO Token address
         Can only be called once by the owner
-        @param _tokenAddress    TALO Token Address
+        @param _tokenAddress TALO Token Address
     */
     function setToken(address _tokenAddress) validAddress(_tokenAddress) ownerOnly public {
         require(tokenAddress == 0x0);
@@ -773,6 +774,18 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
     function changeBeneficiary(address _newBeneficiary) validAddress(_newBeneficiary) ownerOnly public {
         beneficiary = _newBeneficiary;
     }
+    
+    /**
+        @dev Update the conversion rate
+        TALO Foundation use this function to update the conversionRate to make the TALO's price fit with the ETHER's price
+
+        @return true if successful, throws if not
+    */
+    function updateConversionRate(uint256 _conversionRate) ownerOnly public returns (bool success) {
+        require(_conversionRate > 0);
+        conversionRate = _conversionRate;
+        return true;
+    }
 
     ///////////////////////////////////////// PUBLIC FUNCTIONS /////////////////////////////////////////
     /**
@@ -784,7 +797,16 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
     function contributeETH(address _to) public validAddress(_to) between tokenIsSet validInvestor validInvestorAddress(_to) payable returns (uint256 amount) {
         return processContribution(_to);
     }
+    
+    /**
+        @dev Get the current conversion rate
 
+        @return the current conversionRate
+    */
+    function getConversionRate() view public returns (uint256 _conversionRate) {
+        return conversionRate;
+    }
+    
     /**
         @dev handles contribution logic
         note that the Contribution event is triggered using the sender as the contributor, regardless of the actual contributor
@@ -831,8 +853,8 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
         @param _contribution    contribution amount (in wei)
         @return computed number of tokens (in 10^(18) TALO unit)
     */
-    function getTotalAmountOfTokens(uint256 _contribution) public pure returns (uint256 amountOfTokens) {
-        return safeMul(_contribution, 3000); // 3000 is just for demo
+    function getTotalAmountOfTokens(uint256 _contribution) public view returns (uint256 amountOfTokens) {
+        return safeMul(_contribution, conversionRate);
     }
     
     /**
@@ -891,6 +913,7 @@ contract TALOPublicSale is TokenHolder, Whitelist {
     uint256 constant public endTime = 1538351999;       // 09/30/2018 @ 11:59pm (UTC)
     address public beneficiary = 0x0;                   // address to receive all ether contributions
     address public tokenAddress = 0x0;                  // address of the token itself
+    uint256 public conversionRate = 12000;              // conversionRate from ETHER to TALO
     
     // TALO Token interface
     TALOToken token;                                     
@@ -945,6 +968,18 @@ contract TALOPublicSale is TokenHolder, Whitelist {
     function changeBeneficiary(address _newBeneficiary) validAddress(_newBeneficiary) ownerOnly public {
         beneficiary = _newBeneficiary;
     }
+    
+    /**
+        @dev Update the conversion rate
+        TALO Foundation use this function to update the conversionRate to make the TALO's price fit with the ETHER's price
+
+        @return true if successful, throws if not
+    */
+    function updateConversionRate(uint256 _conversionRate) ownerOnly public returns (bool success) {
+        require(_conversionRate > 0);
+        conversionRate = _conversionRate;
+        return true;
+    }
 
     ///////////////////////////////////////// PUBLIC FUNCTIONS /////////////////////////////////////////
     /**
@@ -955,6 +990,15 @@ contract TALOPublicSale is TokenHolder, Whitelist {
     */
     function contributeETH(address _to) public validAddress(_to) between tokenIsSet validInvestor validInvestorAddress(_to) payable returns (uint256 amount) {
         return processContribution(_to);
+    }
+
+    /**
+        @dev Get the current conversion rate
+
+        @return the current conversionRate
+    */
+    function getConversionRate() view public returns (uint256 _conversionRate) {
+        return conversionRate;
     }
 
     /**
@@ -996,8 +1040,8 @@ contract TALOPublicSale is TokenHolder, Whitelist {
         @param _contribution    contribution amount (in wei)
         @return computed number of tokens (in 10^(18) TALO unit)
     */
-    function getTotalAmountOfTokens(uint256 _contribution) public pure returns (uint256 amountOfTokens) {
-        return safeMul(_contribution, 3000); // 3000 is just for demo
+    function getTotalAmountOfTokens(uint256 _contribution) public view returns (uint256 amountOfTokens) {
+        return safeMul(_contribution, conversionRate); 
     }
 
     /**
