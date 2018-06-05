@@ -353,7 +353,8 @@ contract TALOToken is ERC20Token, TokenHolder {
     
     // TALO Foundation address
     address public taloFoundationAddress;
-    uint256 constant public taloFoundationAllocation = 400 * 10**6 * TALO_UNIT; // 40%. Treasury reserve + Ecosystem Building
+    uint256 constant public taloFoundationAllocation = 350 * 10**6 * TALO_UNIT; // 35%. Treasury reserve + Ecosystem Building - 5% Pre-allocation
+    uint256 constant public taloFoundationPreAllocation = 50 * 10**6 * TALO_UNIT; // 5%. Pre-allocation for TALO Foundation to run the Marketing
     
     // Maximum Token preserved for bonus. Based on Robert's calculation
     uint256 constant public maximumBonusAllocation = 144 * 10**6 * TALO_UNIT;
@@ -365,7 +366,8 @@ contract TALOToken is ERC20Token, TokenHolder {
     
     uint256 public totalAllocatedToAdvisors = 0;                                 // Counter to keep track of advisor token allocation
     uint256 public totalAllocatedToTeam = 0;                                     // Counter to keep track of team token allocation
-    uint256 public totalAllocatedToFoundation = 0;                               // Counter to keep track of foudation token allocation
+    uint256 public totalAllocatedToFoundation = 0;                               // Counter to keep track of Foundation token allocation
+    uint256 public totalPreAllocatedToFoundation = 0;                            // Counter to keep track of Foundation token pre-allocation 
     
     uint256 public totalAllocated = 0;                                           // Counter to keep track of overall token allocation
     
@@ -562,6 +564,23 @@ contract TALOToken is ERC20Token, TokenHolder {
         return true;
     }
     
+    /**
+        @dev release TALO Foundation 5% Token pre-allocation. 
+        Owner can call this function anytime to get the 5%.
+
+        @return true if successful, throws if not
+    */
+    function releasePreTALOFoundationTokens() ownerOnly public returns(bool success) {
+        require(totalPreAllocatedToFoundation == 0);
+        
+        uint256 amount = taloFoundationPreAllocation;
+        balanceOf[taloFoundationAddress] = safeAdd(balanceOf[taloFoundationAddress], amount);
+        emit Transfer(0x0, taloFoundationAddress, amount);
+        totalAllocated = safeAdd(totalAllocated, amount);
+        totalPreAllocatedToFoundation = safeAdd(totalPreAllocatedToFoundation, amount);
+        return true;
+    }
+    
      /**
         @dev release TALO Foundation Token allocation
         All token left from the public sale will also be send back to the Foundation
@@ -570,6 +589,7 @@ contract TALOToken is ERC20Token, TokenHolder {
     */
     function releaseTALOFoundationTokens() afterPublicSale ownerOnly public returns(bool success) {
         require(totalAllocatedToFoundation == 0);
+        require(totalPreAllocatedToFoundation > 0); // Already release the pre-allocation for TALO Foundation first
         
         // Collect the unsold token from the ICO
         uint256 amountOfTokensLeft = balanceOf[taloPublicSaleAddress];
@@ -584,6 +604,8 @@ contract TALOToken is ERC20Token, TokenHolder {
         emit Transfer(0x0, taloFoundationAddress, amount);
         totalAllocated = safeAdd(totalAllocated, amount);
         totalAllocatedToFoundation = safeAdd(totalAllocatedToFoundation, amount);
+        // Count the 5% token pre-allocated to foundation
+        totalAllocatedToFoundation = safeAdd(totalAllocatedToFoundation, totalPreAllocatedToFoundation);
         return true;
     }
 
