@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.4.21;
 
 /*
     Owned contract interface
@@ -23,7 +23,7 @@ contract Owned is IOwned {
     /**
         @dev constructor
     */
-    constructor() public {
+    function Owned() public {
         owner = msg.sender;
     }
 
@@ -109,7 +109,7 @@ contract Utils {
     /**
         constructor
     */
-    constructor() public {
+    function Utils() public {
     }
 
     // validates an address - currently only checks that it isn't null
@@ -204,7 +204,7 @@ contract TokenHolder is ITokenHolder, Owned, Utils {
     /**
         @dev constructor
     */
-    constructor() public {
+    function TokenHolder() public {
     }
 
     /**
@@ -249,7 +249,7 @@ contract ERC20Token is IERC20Token, Utils {
         @param _symbol      token symbol
         @param _decimals    decimal points, for display purposes
     */
-    constructor(string _name, string _symbol, uint8 _decimals) public {
+    function ERC20Token(string _name, string _symbol, uint8 _decimals) public {
         require(bytes(_name).length > 0 && bytes(_symbol).length > 0); // validate input
 
         name = _name;
@@ -463,7 +463,7 @@ contract TALOToken is ERC20Token, TokenHolder {
     /**
         @dev constructors
     */
-    constructor(address _taloTeamAddress, address _taloFoundationAddress)
+    function TALOToken(address _taloTeamAddress, address _taloFoundationAddress)
     ERC20Token("TALO Coin", "TALO", 18) public
     {
         taloTeamAddress = _taloTeamAddress;
@@ -734,7 +734,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
         @dev constructor
         @param _beneficiary Address that will be receiving the ETH contributed
     */
-    constructor(address _beneficiary) validAddress(_beneficiary) public
+    function TALOPrivateSale(address _beneficiary) validAddress(_beneficiary) public
     {
         beneficiary = _beneficiary;
     }
@@ -928,7 +928,7 @@ contract TALOPublicSale is TokenHolder, Whitelist {
         @dev constructor
         @param _beneficiary                         Address that will be receiving the ETH contributed
     */
-    constructor(address _beneficiary) validAddress(_beneficiary) public
+    function TALOPublicSale(address _beneficiary) validAddress(_beneficiary) public
     {
         beneficiary = _beneficiary;
     }
