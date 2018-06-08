@@ -356,7 +356,7 @@ contract TALOToken is ERC20Token, TokenHolder {
     uint256 constant public taloFoundationAllocation = 350 * 10**6 * TALO_UNIT; // 35%. Treasury reserve + Ecosystem Building - 5% Pre-allocation
     uint256 constant public taloFoundationPreAllocation = 50 * 10**6 * TALO_UNIT; // 5%. Pre-allocation for TALO Foundation to run the Marketing
     
-    // Maximum Token preserved for bonus. Based on Robert's calculation
+    // Maximum Token preserved for bonus. Based on bonus formula calculating
     uint256 constant public maximumBonusAllocation = 144 * 10**6 * TALO_UNIT;
 
     // Variables
