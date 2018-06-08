@@ -362,7 +362,8 @@ contract TALOToken is ERC20Token, TokenHolder {
     // Variables
     uint256 public totalAllocatedForBonus = 0;                                   // Counter to keep track of token allocation for bonus during the private sale
     uint256 public totalAllocatedForPrivateSale = 0;                             // Counter to keep track of token allocation during the private sale
-    uint256 public totalAllocatedForPrePrivateSale = 0;                          // Counter to keep track of token allocation before the private sale, transfered by function 
+    uint256 public totalAllocatedForPrePrivateSale = 0;                          // Counter to keep track of token allocation before the private sale, transfered by manual function 
+    uint256 public totalAllocatedForPublicSale = 0;                             // Counter to keep track of token allocation during the public sale
     
     uint256 public totalAllocatedToAdvisors = 0;                                 // Counter to keep track of advisor token allocation
     uint256 public totalAllocatedToTeam = 0;                                     // Counter to keep track of team token allocation
@@ -392,8 +393,8 @@ contract TALOToken is ERC20Token, TokenHolder {
     }
 
     // Function only accessible by the Crowdfund contract (PrivateSale or PublicSale)
-    modifier crowdfundContractOnly() {
-        require(msg.sender == taloPrivateSaleAddress || msg.sender == taloPublicSaleAddress);
+    modifier publicSaleContractOnly() {
+        require(msg.sender == taloPublicSaleAddress);
         _;
     }
     
@@ -625,11 +626,12 @@ contract TALOToken is ERC20Token, TokenHolder {
     }
 
     /**
-        @dev Keep track of token allocations
+        @dev Keep track of token allocations for public sale
         can only be called by the crowdfund contract
     */
-    function addToAllocation(uint256 _amount) crowdfundContractOnly public {
+    function addToAllocationForPublicSale(uint256 _amount) publicSaleContractOnly public {
         totalAllocated = safeAdd(totalAllocated, _amount);
+        totalAllocatedForPublicSale = safeAdd(totalAllocatedForPublicSale, _amount);
     }
     
     /**
@@ -1015,7 +1017,7 @@ contract TALOPublicSale is TokenHolder, Whitelist {
         token.transfer(_to, tokenAmount);
         
         // Add allocation
-        token.addToAllocation(tokenAmount);
+        token.addToAllocationForPublicSale(tokenAmount);
         
         // Emit event
         emit CrowdsaleContribution(_to, msg.value, tokenAmount);
