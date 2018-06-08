@@ -3,6 +3,9 @@ pragma solidity ^0.4.24;
 /// This Multisignature wallet is based on Gnosis implementation: https://github.com/Gnosis/MultiSigWallet
 /// @title Multisignature wallet - Allows multiple parties to agree on transactions before execution.
 /// @author Stefan George - <stefan.george@consensys.net>
+
+/// This Multisignature wallet is used for TALO Crowd Token Sale (CTS). 
+/// TALO website: https://talo.io
 contract MultiSigWallet {
 
     /*
