@@ -358,6 +358,9 @@ contract TALOToken is ERC20Token, TokenHolder {
     
     // Maximum Token preserved for bonus. Based on bonus formula calculating
     uint256 constant public maximumBonusAllocation = 144 * 10**6 * TALO_UNIT;
+    
+    // List of approved address for early transferring
+    mapping(address => bool) private approvedTransferringList;
 
     // Variables
     uint256 public totalAllocatedForBonus = 0;                                   // Counter to keep track of token allocation for bonus during the private sale
@@ -458,6 +461,26 @@ contract TALOToken is ERC20Token, TokenHolder {
         advisorAllocations = _advisorAllocations;
         return true;
     }
+    
+    /**
+     * @dev add list of address allowed for early transferring
+     * @param newAddressList Array of addresses to be added
+     */
+    function addTransferringAddressList(address[] newAddressList) ownerOnly public {
+        for (uint256 i = 0; i < newAddressList.length; i++) {
+            approvedTransferringList[newAddressList[i]] = true;
+        }
+    }
+
+    /**
+     * @dev remove list of address allowed for early transferring
+     * @param addressList Array of addresses to be removed
+     */
+    function removeTransferringAddressList(address[] addressList) ownerOnly public {
+        for (uint256 i = 0; i < addressList.length; i++) {
+            approvedTransferringList[addressList[i]] = false;
+        }
+    }
 
     ///////////////////////////////////////// CONSTRUCTOR /////////////////////////////////////////
 
@@ -484,7 +507,7 @@ contract TALOToken is ERC20Token, TokenHolder {
         @return true if the transfer was successful, throws if it wasn't
     */
     function transfer(address _to, uint256 _value) public returns (bool success) {
-        if (isTransferAllowed() == true || msg.sender == taloPrivateSaleAddress || msg.sender == taloPublicSaleAddress) {
+        if (isTransferAllowed() == true || msg.sender == taloPrivateSaleAddress || msg.sender == taloPublicSaleAddress || approvedTransferringList[msg.sender]) {
             assert(super.transfer(_to, _value));
             return true;
         }
