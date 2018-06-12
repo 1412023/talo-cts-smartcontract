@@ -365,7 +365,6 @@ contract TALOToken is ERC20Token, TokenHolder {
     // Variables
     uint256 public totalAllocatedForBonus = 0;                                   // Counter to keep track of token allocation for bonus during the private sale
     uint256 public totalAllocatedForPrivateSale = 0;                             // Counter to keep track of token allocation during the private sale
-    uint256 public totalAllocatedForPrePrivateSale = 0;                          // Counter to keep track of token allocation before the private sale, transfered by manual function 
     uint256 public totalAllocatedForPublicSale = 0;                             // Counter to keep track of token allocation during the public sale
     
     uint256 public totalAllocatedToAdvisors = 0;                                 // Counter to keep track of advisor token allocation
@@ -432,7 +431,7 @@ contract TALOToken is ERC20Token, TokenHolder {
     function setPrivateSaleAddress(address _taloPrivateSaleAddress) validAddress(_taloPrivateSaleAddress) ownerOnly public returns (bool success) {
         require(taloPrivateSaleAddress == 0x0);
         taloPrivateSaleAddress = _taloPrivateSaleAddress;
-        balanceOf[taloPrivateSaleAddress] = taloCrowdfundAllocation - totalAllocatedForPrePrivateSale;
+        balanceOf[taloPrivateSaleAddress] = taloCrowdfundAllocation;
         return true;
     }
     
@@ -679,28 +678,6 @@ contract TALOToken is ERC20Token, TokenHolder {
         emit Transfer(0x0, _contributorAddress, _bonusAmount);
         totalAllocated = safeAdd(totalAllocated, _bonusAmount);
         totalAllocatedForBonus = totalAllocatedForBonusAmount;
-    }
-
-    /**
-     * @dev Send token & bonus manually to contributor before the private sale. 
-     * Caller is responsible for calculating the _bonusAmount correctly
-     * 
-     * @return true if successful, throws if not
-     */
-    function manuallyTransferTokenBeforePrivateSale(address _contributorAddress, uint256 _amount, uint256 _bonusAmount) beforePrivateSale ownerOnly validAddress(_contributorAddress) public returns(bool success) {
-        require(safeAdd(totalAllocatedForBonus, _bonusAmount) <= maximumBonusAllocation);
-        
-        uint256 totalAmount = safeAdd(_amount, _bonusAmount);
-        balanceOf[_contributorAddress] = safeAdd(balanceOf[_contributorAddress], totalAmount);
-        
-        totalAllocated = safeAdd(totalAllocated, totalAmount);
-        totalAllocatedForPrePrivateSale = safeAdd(totalAllocatedForPrePrivateSale, _amount);
-        totalAllocatedForPrivateSale = safeAdd(totalAllocatedForPrivateSale, _amount);
-        totalAllocatedForBonus = safeAdd(totalAllocatedForBonus, _bonusAmount);
-        
-        emit Transfer(0x0, _contributorAddress, _amount);
-        emit Transfer(0x0, _contributorAddress, _bonusAmount);
-        return true;
     }
 
     /**
