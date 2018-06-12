@@ -751,7 +751,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
 
     ///////////////////////////////////////// EVENTS /////////////////////////////////////////
 
-    event CrowdsaleContribution(address indexed _contributor, uint256 _amount, uint256 _return);
+    event PrivateSaleContribution(address indexed _contributor, uint256 _amount, uint256 _currentTotalTAlOSold, uint256 _return);
 
     ///////////////////////////////////////// CONSTRUCTOR /////////////////////////////////////////
 
@@ -856,7 +856,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
         token.transferBonusToken(_to, tokenBonusAmount);
         
         // Emit event
-        emit CrowdsaleContribution(_to, msg.value, safeAdd(tokenAmount, tokenBonusAmount));
+        emit PrivateSaleContribution(_to, msg.value, token.totalAllocatedForPrivateSale(), safeAdd(tokenAmount, tokenBonusAmount));
         return tokenAmount;
     }
 
