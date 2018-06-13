@@ -432,6 +432,7 @@ contract TALOToken is ERC20Token, TokenHolder {
         require(taloPrivateSaleAddress == 0x0);
         taloPrivateSaleAddress = _taloPrivateSaleAddress;
         balanceOf[taloPrivateSaleAddress] = taloCrowdfundAllocation;
+        emit Transfer(0x0, _taloPrivateSaleAddress, taloCrowdfundAllocation);
         return true;
     }
     
@@ -644,6 +645,7 @@ contract TALOToken is ERC20Token, TokenHolder {
         uint256 amountOfTokens = balanceOf[taloPrivateSaleAddress];
         balanceOf[taloPrivateSaleAddress] = 0;
         balanceOf[taloPublicSaleAddress] = safeAdd(balanceOf[taloPublicSaleAddress], amountOfTokens);
+        emit Transfer(taloPrivateSaleAddress, taloPublicSaleAddress, amountOfTokens);
         return true;
     }
 
