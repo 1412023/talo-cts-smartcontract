@@ -335,12 +335,10 @@ contract TALOToken is ERC20Token, TokenHolder {
     uint256 public totalSupply = (10**9) * TALO_UNIT; // 1,000,000,000 Token
 
     // Address of the crowdfund
-    address public taloPrivateSaleAddress = 0x0;
-    address public taloPublicSaleAddress = 0x0;
+    address public taloCrowdTokenSaleAddress = 0x0;
     uint256 constant public taloCrowdfundAllocation = 400 * 10**6 * TALO_UNIT; // 40%
-    uint256 constant public privateSaleStartTime = 1527465600; // 05/28/2018 @ 12:00am (UTC)
-    uint256 constant public privateSaleEndTime = 1535759999;   // 08/31/2018 @ 11:59pm (UTC)
-    uint256 constant public publicSaleEndTime = 1535846400;    // 09/02/2018 @ 12:00am (UTC)
+    uint256 constant public crowdTokenSaleStartTime = 1527465600; // 05/28/2018 @ 12:00am (UTC)
+    uint256 constant public crowdTokenSaleEndTime = 1538351999;   // 09/30/2018 @ 11:59pm (UTC)
 
     // TALO Advisor addresses
     uint256 constant public taloAdvisorAllocation = 50 * 10**6 * TALO_UNIT; // 5%
@@ -359,13 +357,18 @@ contract TALOToken is ERC20Token, TokenHolder {
     // Maximum Token preserved for bonus. Based on bonus formula calculating
     uint256 constant public maximumBonusAllocation = 144 * 10**6 * TALO_UNIT;
     
-    // List of approved address for early transferring
+    // List of approved addresses for early transferring
     mapping(address => bool) private approvedTransferringList;
+    
+    // List of locked up addresses to prevent from transferring TALO
+    mapping(address => bool) private lockedTransferringList;
+    
+    // Flag to allow transfer/transferFrom before the end of the crowdfund
+    bool internal isReleasedToPublic = false;                                    
+
 
     // Variables
     uint256 public totalAllocatedForBonus = 0;                                   // Counter to keep track of token allocation for bonus during the private sale
-    uint256 public totalAllocatedForPrivateSale = 0;                             // Counter to keep track of token allocation during the private sale
-    uint256 public totalAllocatedForPublicSale = 0;                             // Counter to keep track of token allocation during the public sale
     
     uint256 public totalAllocatedToAdvisors = 0;                                 // Counter to keep track of advisor token allocation
     uint256 public totalAllocatedToTeam = 0;                                     // Counter to keep track of team token allocation
@@ -374,74 +377,51 @@ contract TALOToken is ERC20Token, TokenHolder {
     
     uint256 public totalAllocated = 0;                                           // Counter to keep track of overall token allocation
     
-    bool internal isReleasedToPublic = false;                                    // Flag to allow transfer/transferFrom before the end of the crowdfund
-
-    uint256 internal teamTranchesReleased = 0;                                   // Track how many tranches (allocations of 25% team tokens) have been released
-    uint256 internal maxTeamTranches = 4;                                        // The number of tranches allowed to the team until depleted
+    uint256 internal teamTranchesReleased = 0;                                   // Track how many tranches (allocations of 12.5% team tokens) have been released
+    uint256 internal maxTeamTranches = 8;                                        // 8 tranches for the team to get the token, 12.5% each, 1 tranch = 90 days
 
 
     ///////////////////////////////////////// MODIFIERS /////////////////////////////////////////
 
     // TALO Team timelock 
     modifier safeTimelock() {
-        require(now >= publicSaleEndTime + 3 * 30 days);
+        require(now >= crowdTokenSaleEndTime + 3 * 30 days);
         _;
     }
 
     // TALO Advisor timelock    
     modifier advisorTimelock() {
-        require(now >= publicSaleEndTime + 6 * 30 days);
+        require(now >= crowdTokenSaleEndTime + 6 * 30 days);
         _;
     }
 
-    // Function only accessible by the Crowdfund contract (PrivateSale or PublicSale)
-    modifier publicSaleContractOnly() {
-        require(msg.sender == taloPublicSaleAddress);
-        _;
-    }
-    
     // Function only accessible by the Priate Sale contract
-    modifier privateSaleContractOnly() {
-        require(msg.sender == taloPrivateSaleAddress);
+    modifier crowdTokenSaleContractOnly() {
+        require(msg.sender == taloCrowdTokenSaleAddress);
         _;
     }
     
-    // Before private sale timelock
-    modifier beforePrivateSale() {
-        require(now < privateSaleStartTime);
+    // Before crowd token sale timelock
+    modifier beforeCrowdTokenSale() {
+        require(now < crowdTokenSaleStartTime);
         _;
     }
     
-    // After private sale timelock
-    modifier afterPrivateSale() {
-        require(now >= privateSaleEndTime);
-        _;
-    }
-    
-    // After private sale timelock
-    modifier afterPublicSale() {
-        require(now >= publicSaleEndTime);
+    // After crowd token sale timelock
+    modifier afterCrowdTokenSale() {
+        require(now >= crowdTokenSaleEndTime);
         _;
     }
     
     /**
-        @dev set the private sale address of TALO ico, set balance for the private 
-        sale equal to the Total allocation for crowdfund minus the token raised before private sale.
+        @dev set the crowd token sale address for TALO, set balance for the smart contract
+        equal to the Total allocation for crowdfund.
     */
-    function setPrivateSaleAddress(address _taloPrivateSaleAddress) validAddress(_taloPrivateSaleAddress) ownerOnly public returns (bool success) {
-        require(taloPrivateSaleAddress == 0x0);
-        taloPrivateSaleAddress = _taloPrivateSaleAddress;
-        balanceOf[taloPrivateSaleAddress] = taloCrowdfundAllocation;
-        emit Transfer(0x0, _taloPrivateSaleAddress, taloCrowdfundAllocation);
-        return true;
-    }
-    
-    /**
-        @dev set the public sale address of TALO ico
-    */
-    function setPublicSaleAddress(address _taloPublicSaleAddress) validAddress(_taloPublicSaleAddress) ownerOnly public returns (bool success) {
-        require(taloPublicSaleAddress == 0x0);
-        taloPublicSaleAddress = _taloPublicSaleAddress;
+    function setCrowdTokenSaleAddress(address _taloCrowdTokenSaleAddress) validAddress(_taloCrowdTokenSaleAddress) ownerOnly public returns (bool success) {
+        require(taloCrowdTokenSaleAddress == 0x0);
+        taloCrowdTokenSaleAddress = _taloCrowdTokenSaleAddress;
+        balanceOf[taloCrowdTokenSaleAddress] = taloCrowdfundAllocation;
+        emit Transfer(0x0, taloCrowdTokenSaleAddress, taloCrowdfundAllocation);
         return true;
     }
     
@@ -463,22 +443,42 @@ contract TALOToken is ERC20Token, TokenHolder {
     }
     
     /**
-     * @dev add list of address allowed for early transferring
-     * @param newAddressList Array of addresses to be added
+     * @dev add list of addresses which are allowed for early transferring
+     * @param newAddressList Array of addresses
      */
-    function addTransferringAddressList(address[] newAddressList) ownerOnly public {
+    function addApprovedAddressesForTransferring(address[] newAddressList) ownerOnly public {
         for (uint256 i = 0; i < newAddressList.length; i++) {
             approvedTransferringList[newAddressList[i]] = true;
         }
     }
 
     /**
-     * @dev remove list of address allowed for early transferring
-     * @param addressList Array of addresses to be removed
+     * @dev remove list of addresses which are allowed for early transferring
+     * @param addressList Array of addresses
      */
-    function removeTransferringAddressList(address[] addressList) ownerOnly public {
+    function removeApprovedAddressesForTransferring(address[] addressList) ownerOnly public {
         for (uint256 i = 0; i < addressList.length; i++) {
             approvedTransferringList[addressList[i]] = false;
+        }
+    }
+    
+    /**
+     * @dev add list of addresses which are locked up from transferring
+     * @param newAddressList Array of addresses
+     */
+    function addLockedUpAddressesForTransferring(address[] newAddressList) ownerOnly public {
+        for (uint256 i = 0; i < newAddressList.length; i++) {
+            lockedTransferringList[newAddressList[i]] = true;
+        }
+    }
+
+    /**
+     * @dev remove list of addresses which are locked up from transferring
+     * @param addressList Array of addresses
+     */
+    function removeLockedUpAddressesForTransferring(address[] addressList) ownerOnly public {
+        for (uint256 i = 0; i < addressList.length; i++) {
+            lockedTransferringList[addressList[i]] = false;
         }
     }
 
@@ -507,7 +507,8 @@ contract TALOToken is ERC20Token, TokenHolder {
         @return true if the transfer was successful, throws if it wasn't
     */
     function transfer(address _to, uint256 _value) public returns (bool success) {
-        if (isTransferAllowed() == true || msg.sender == taloPrivateSaleAddress || msg.sender == taloPublicSaleAddress || approvedTransferringList[msg.sender]) {
+        if ( (isTransferAllowed() == true || msg.sender == taloCrowdTokenSaleAddress || approvedTransferringList[msg.sender])
+                && !lockedTransferringList[msg.sender] ) {
             assert(super.transfer(_to, _value));
             return true;
         }
@@ -526,7 +527,8 @@ contract TALOToken is ERC20Token, TokenHolder {
         @return true if the transfer was successful, throws if it wasn't
     */
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
-        if (isTransferAllowed() == true || msg.sender == taloPrivateSaleAddress || msg.sender == taloPublicSaleAddress) {        
+        if ( (isTransferAllowed() == true || _from == taloCrowdTokenSaleAddress || approvedTransferringList[_from])
+                && !lockedTransferringList[_from] ) {
             assert(super.transferFrom(_from, _to, _value));
             return true;
         }
@@ -536,22 +538,26 @@ contract TALOToken is ERC20Token, TokenHolder {
     ///////////////////////////////////////// ALLOCATION FUNCTIONS /////////////////////////////////////////
 
     /**
-        @dev Release TALO Token to TALO Team based on 4 tranches:
-        - After 3 months: 25%
-        - After 6 months: 25% more
-        - After 9 months: 25% more
-        - After 12 mongths: 25% more
+        @dev Release TALO Token to TALO Team based on 8 tranches:
+        - After 90 days: 12.5%
+        - After 180 days: 12.5% more
+        - After 270 days: 12.5% more
+        - After 360 days: 12.5% more
+        - After 450 days: 12.5% more
+        - After 540 days: 12.5% more
+        - After 630 days: 12.5% more
+        - After 720 days: 12.5% more
         @return true if successful, throws if not
     */
     function releaseTALOTeamTokens() safeTimelock ownerOnly public returns(bool success) {
         require(totalAllocatedToTeam < taloTeamAllocation);
 
-        uint256 taloTeamAlloc = taloTeamAllocation / 100;
-        uint256 currentTranche = uint256(now - publicSaleEndTime) / (3 * 30 days);
+        uint256 taloTeamAlloc = taloTeamAllocation / 1000;
+        uint256 currentTranche = uint256(now - crowdTokenSaleEndTime) / (3 * 30 days);
 
         if (teamTranchesReleased < maxTeamTranches && currentTranche > teamTranchesReleased) {
             teamTranchesReleased++;
-            uint256 amount = safeMul(taloTeamAlloc, 25); // 25% of allocation for TALO team
+            uint256 amount = safeMul(taloTeamAlloc, 125); // 12.5% of allocation for TALO team
             balanceOf[taloTeamAddress] = safeAdd(balanceOf[taloTeamAddress], amount);
             emit Transfer(0x0, taloTeamAddress, amount);
             totalAllocated = safeAdd(totalAllocated, amount);
@@ -611,13 +617,13 @@ contract TALOToken is ERC20Token, TokenHolder {
 
         @return true if successful, throws if not
     */
-    function releaseTALOFoundationTokens() afterPublicSale ownerOnly public returns(bool success) {
+    function releaseTALOFoundationTokens() afterCrowdTokenSale ownerOnly public returns(bool success) {
         require(totalAllocatedToFoundation == 0);
         require(totalPreAllocatedToFoundation > 0); // Already release the pre-allocation for TALO Foundation first
         
-        // Collect the unsold token from the ICO
-        uint256 amountOfTokensLeft = balanceOf[taloPublicSaleAddress];
-        balanceOf[taloPublicSaleAddress] = 0;
+        // Collect the unsold token from the Crowd Token Sale
+        uint256 amountOfTokensLeft = balanceOf[taloCrowdTokenSaleAddress];
+        balanceOf[taloCrowdTokenSaleAddress] = 0;
         
         uint256 amount = safeAdd(taloFoundationAllocation, amountOfTokensLeft);
         
@@ -634,43 +640,17 @@ contract TALOToken is ERC20Token, TokenHolder {
     }
 
     /**
-        @dev Retrieve unsold token from the private sale and put it in the public sale, only can be called when public sale already set
-
-        @return true if successful, throws if not
-    */
-    function retrieveUnsoldTokensFromPrivateSale() afterPrivateSale ownerOnly public returns(bool success) {
-        require(taloPrivateSaleAddress != 0x0);
-        require(balanceOf[taloPrivateSaleAddress] > 0);
-        require(taloPublicSaleAddress != 0x0);
-        uint256 amountOfTokens = balanceOf[taloPrivateSaleAddress];
-        balanceOf[taloPrivateSaleAddress] = 0;
-        balanceOf[taloPublicSaleAddress] = safeAdd(balanceOf[taloPublicSaleAddress], amountOfTokens);
-        emit Transfer(taloPrivateSaleAddress, taloPublicSaleAddress, amountOfTokens);
-        return true;
-    }
-
-    /**
-        @dev Keep track of token allocations for public sale
+        @dev Keep track of token allocations for crowd token sale
         can only be called by the crowdfund contract
     */
-    function addToAllocationForPublicSale(uint256 _amount) publicSaleContractOnly public {
+    function addToAllocation(uint256 _amount) crowdTokenSaleContractOnly public {
         totalAllocated = safeAdd(totalAllocated, _amount);
-        totalAllocatedForPublicSale = safeAdd(totalAllocatedForPublicSale, _amount);
     }
     
     /**
-        @dev Keep track of token allocations for private sale
-        can only be called by the crowdfund contract
-    */
-    function addToAllocationForPrivateSale(uint256 _amount) privateSaleContractOnly public {
-        totalAllocated = safeAdd(totalAllocated, _amount);
-        totalAllocatedForPrivateSale = safeAdd(totalAllocatedForPrivateSale, _amount);
-    }
-    
-    /**
-     * @dev Send bonus to investors at private sale 
+     * @dev Send bonus to investors during the crowd token sale
      */
-    function transferBonusToken(address _contributorAddress, uint256 _bonusAmount) privateSaleContractOnly validAddress(_contributorAddress) public {
+    function transferBonusToken(address _contributorAddress, uint256 _bonusAmount) crowdTokenSaleContractOnly validAddress(_contributorAddress) public {
         // This contributor should have already bought some tokens
         require(balanceOf[_contributorAddress] > 0);
         uint256 totalAllocatedForBonusAmount = safeAdd(totalAllocatedForBonus, _bonusAmount);
@@ -696,20 +676,20 @@ contract TALOToken is ERC20Token, TokenHolder {
         Transfers are forbidden before the end of the crowdfund
     */
     function isTransferAllowed() internal constant returns(bool) {
-        if (now > publicSaleEndTime || isReleasedToPublic == true) {
+        if (now > crowdTokenSaleEndTime || isReleasedToPublic == true) {
             return true;
         }
         return false;
     }
 }
 
-contract TALOPrivateSale is TokenHolder, Whitelist {
+contract TALOCrowdTokenSale is TokenHolder, Whitelist {
     uint256 constant public TALO_UNIT = 10 ** 18;
 
     ///////////////////////////////////////// VARIABLE INITIALIZATION /////////////////////////////////////////
 
     uint256 constant public startTime = 1527465600;     // 05/28/2018 @ 12:00am (UTC)
-    uint256 constant public endTime = 1535759999;       // 08/31/2018 @ 11:59pm (UTC)
+    uint256 constant public endTime = 1538351999;       // 09/30/2018 @ 11:59pm (UTC)
     address public beneficiary = 0x0;                   // address to receive all ether contributions
     address public tokenAddress = 0x0;                  // address of the token itself
     uint256 public conversionRate = 12000;              // conversionRate from ETHER to TALO
@@ -730,7 +710,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
 
     ///////////////////////////////////////// EVENTS /////////////////////////////////////////
 
-    event PrivateSaleContribution(address indexed _contributor, uint256 _amount, uint256 _currentTotalTAlOSold, uint256 _return, uint256 _bonusReturn);
+    event CrowdTokenSaleContribution(address indexed _contributor, uint256 _amount, uint256 _currentTotalTAlOSold, uint256 _return, uint256 _bonusReturn);
 
     ///////////////////////////////////////// CONSTRUCTOR /////////////////////////////////////////
 
@@ -738,7 +718,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
         @dev constructor
         @param _beneficiary Address that will be receiving the ETH contributed
     */
-    function TALOPrivateSale(address _beneficiary) validAddress(_beneficiary) public
+    function TALOCrowdTokenSale(address _beneficiary) validAddress(_beneficiary) public
     {
         beneficiary = _beneficiary;
     }
@@ -819,7 +799,8 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
     */
     function processContribution(address _to) private returns (uint256 amount) {
         uint256 tokenAmount = getTotalAmountOfTokens(msg.value);
-        require(safeAdd(tokenAmount, totalTALOSoldForPrivateSale()) <= bonusTokenRanges[4]);
+        uint256 totalTokenSold = totalTALOSold();
+        require(safeAdd(tokenAmount, totalTokenSold) <= bonusTokenRanges[4]);
         
         // Transfer tokens
         beneficiary.transfer(msg.value);
@@ -829,13 +810,13 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
         uint256 tokenBonusAmount = getBonusAmountOfTokens(tokenAmount);
         
         // Add allocation
-        token.addToAllocationForPrivateSale(tokenAmount);
+        token.addToAllocation(tokenAmount);
         
         // Transfer bonus
         token.transferBonusToken(_to, tokenBonusAmount);
         
         // Emit event
-        emit PrivateSaleContribution(_to, msg.value, token.totalAllocatedForPrivateSale(), tokenAmount, tokenBonusAmount);
+        emit CrowdTokenSaleContribution(_to, msg.value, totalTokenSold, tokenAmount, tokenBonusAmount);
         return tokenAmount;
     }
 
@@ -848,8 +829,8 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
 
         @return total tokens allocated so far
     */
-    function totalTALOSoldForPrivateSale() public constant returns(uint256 total) {
-        return token.totalAllocatedForPrivateSale();
+    function totalTALOSold() public constant returns(uint256 total) {
+        return token.totalAllocated();
     }
     
     /**
@@ -866,7 +847,7 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
         @return computed number of tokens (in 10^(18) TALO unit)
     */
     function getBonusAmountOfTokens(uint256 tokenAmount) public view returns (uint256 bonusAmountOfTokens) {
-        uint256 tokenSold = totalTALOSoldForPrivateSale();
+        uint256 tokenSold = totalTALOSold();
         uint256 i = 0;
         while (i < 5 && tokenSold >= bonusTokenRanges[i]) ++i;
         require(i < 5);
@@ -896,156 +877,6 @@ contract TALOPrivateSale is TokenHolder, Whitelist {
         else if (tokenAmount >= bonusTokenBulk2) return bonusTokenBulk2Percent;
         else if (tokenAmount >= bonusTokenBulk3) return bonusTokenBulk3Percent;
         return 0;
-    }
-
-    /**
-        @dev Fallback function
-        Main entry to buy into the crowdfund, all you need to do is send a value transaction
-        to this contract address. Please include at least 100 000 gas in the transaction.
-    */
-    function() payable public validInvestor {
-        contributeETH(msg.sender);
-    }
-}
-
-contract TALOPublicSale is TokenHolder, Whitelist {
-    uint256 constant public TALO_UNIT = 10 ** 18;
-
-    ///////////////////////////////////////// VARIABLE INITIALIZATION /////////////////////////////////////////
-
-    uint256 constant public startTime = 1535846400;     // 09/02/2018 @ 12:00am (UTC)
-    uint256 constant public endTime = 1538351999;       // 09/30/2018 @ 11:59pm (UTC)
-    address public beneficiary = 0x0;                   // address to receive all ether contributions
-    address public tokenAddress = 0x0;                  // address of the token itself
-    uint256 public conversionRate = 12000;              // conversionRate from ETHER to TALO
-    
-    // TALO Token interface
-    TALOToken token;                                     
-
-    ///////////////////////////////////////// EVENTS /////////////////////////////////////////
-
-    event CrowdsaleContribution(address indexed _contributor, uint256 _amount, uint256 _return);
-
-    ///////////////////////////////////////// CONSTRUCTOR /////////////////////////////////////////
-
-    /**
-        @dev constructor
-        @param _beneficiary                         Address that will be receiving the ETH contributed
-    */
-    function TALOPublicSale(address _beneficiary) validAddress(_beneficiary) public
-    {
-        beneficiary = _beneficiary;
-    }
-
-    ///////////////////////////////////////// MODIFIERS /////////////////////////////////////////
-
-    // Ensures that the current time is between startTime (inclusive) and endTime (exclusive)
-    modifier between() {
-        assert(now >= startTime && now < endTime);
-        _;
-    }
-
-    // Ensures the Token address is set
-    modifier tokenIsSet() {
-        require(tokenAddress != 0x0);
-        _;
-    }
-
-    ///////////////////////////////////////// OWNER FUNCTIONS /////////////////////////////////////////
-
-    /**
-        @dev Sets the TALO Token address
-        Can only be called once by the owner
-        @param _tokenAddress    TALO Token Address
-    */
-    function setToken(address _tokenAddress) validAddress(_tokenAddress) ownerOnly public {
-        require(tokenAddress == 0x0);
-        tokenAddress = _tokenAddress;
-        token = TALOToken(_tokenAddress);
-    }
-
-    /**
-        @dev Sets a new Beneficiary address
-        Can only be called by the owner
-        @param _newBeneficiary    Beneficiary Address
-    */
-    function changeBeneficiary(address _newBeneficiary) validAddress(_newBeneficiary) ownerOnly public {
-        beneficiary = _newBeneficiary;
-    }
-    
-    /**
-        @dev Update the conversion rate
-        TALO Foundation use this function to update the conversionRate to make the TALO's price fit with the ETHER's price
-
-        @return true if successful, throws if not
-    */
-    function updateConversionRate(uint256 _conversionRate) ownerOnly public returns (bool success) {
-        require(_conversionRate > 0);
-        conversionRate = _conversionRate;
-        return true;
-    }
-
-    ///////////////////////////////////////// PUBLIC FUNCTIONS /////////////////////////////////////////
-    /**
-        @dev ETH contribution function
-        Can only be called during the crowdsale. Also allows a person to buy tokens for another address
-
-        @return tokens issued in return
-    */
-    function contributeETH(address _to) public validAddress(_to) between tokenIsSet validInvestor validInvestorAddress(_to) payable returns (uint256 amount) {
-        return processContribution(_to);
-    }
-
-    /**
-        @dev Get the current conversion rate
-
-        @return the current conversionRate
-    */
-    function getConversionRate() view public returns (uint256 _conversionRate) {
-        return conversionRate;
-    }
-
-    /**
-        @dev handles contribution logic
-        note that the Contribution event is triggered using the sender as the contributor, regardless of the actual contributor
-
-        @return tokens issued in return
-    */
-    function processContribution(address _to) private returns (uint256 amount) {
-        uint256 tokenAmount = getTotalAmountOfTokens(msg.value);
-        
-        // Transfer tokens
-        beneficiary.transfer(msg.value);
-        token.transfer(_to, tokenAmount);
-        
-        // Add allocation
-        token.addToAllocationForPublicSale(tokenAmount);
-        
-        // Emit event
-        emit CrowdsaleContribution(_to, msg.value, tokenAmount);
-        return tokenAmount;
-    }
-
-
-    ///////////////////////////////////////// CONSTANT FUNCTIONS /////////////////////////////////////////
-    
-    /**
-        @dev Returns total tokens allocated so far
-        Constant function that simply returns a number
-
-        @return total tokens allocated so far
-    */
-    function totalTALOSold() public constant returns(uint256 total) {
-        return token.totalAllocated();
-    }
-    
-    /**
-        @dev computes the number of tokens that should be issued for a given contribution
-        @param _contribution    contribution amount (in wei)
-        @return computed number of tokens (in 10^(18) TALO unit)
-    */
-    function getTotalAmountOfTokens(uint256 _contribution) public view returns (uint256 amountOfTokens) {
-        return safeMul(_contribution, conversionRate); 
     }
 
     /**
