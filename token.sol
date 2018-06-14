@@ -363,7 +363,10 @@ contract TALOToken is ERC20Token, TokenHolder {
     // List of locked up addresses to prevent from transferring TALO
     mapping(address => bool) private lockedTransferringList;
     
-    // Flag to allow transfer/transferFrom before the end of the crowdfund
+    // Flag to allow early transferring 
+    bool internal isEarlyTransferringAllowed = false;
+    
+    // Flag to allow token tranferring to public, token can be transferred freely without any limitation from the lock list
     bool internal isReleasedToPublic = false;                                    
 
 
@@ -384,13 +387,13 @@ contract TALOToken is ERC20Token, TokenHolder {
     ///////////////////////////////////////// MODIFIERS /////////////////////////////////////////
 
     // TALO Team timelock 
-    modifier safeTimelock() {
+    modifier threeMonthTimeLock() {
         require(now >= crowdTokenSaleEndTime + 3 * 30 days);
         _;
     }
 
     // TALO Advisor timelock    
-    modifier advisorTimelock() {
+    modifier sixMonthTimeLock() {
         require(now >= crowdTokenSaleEndTime + 6 * 30 days);
         _;
     }
@@ -398,12 +401,6 @@ contract TALOToken is ERC20Token, TokenHolder {
     // Function only accessible by the Priate Sale contract
     modifier crowdTokenSaleContractOnly() {
         require(msg.sender == taloCrowdTokenSaleAddress);
-        _;
-    }
-    
-    // Before crowd token sale timelock
-    modifier beforeCrowdTokenSale() {
-        require(now < crowdTokenSaleStartTime);
         _;
     }
     
@@ -507,8 +504,9 @@ contract TALOToken is ERC20Token, TokenHolder {
         @return true if the transfer was successful, throws if it wasn't
     */
     function transfer(address _to, uint256 _value) public returns (bool success) {
-        if ( (isTransferAllowed() == true || msg.sender == taloCrowdTokenSaleAddress || approvedTransferringList[msg.sender])
-                && !lockedTransferringList[msg.sender] ) {
+        if ( isReleasedToPublic 
+                ||  ( (isTransferAllowed() == true || msg.sender == taloCrowdTokenSaleAddress || approvedTransferringList[msg.sender])
+                    && !lockedTransferringList[msg.sender] ) ) {
             assert(super.transfer(_to, _value));
             return true;
         }
@@ -527,8 +525,9 @@ contract TALOToken is ERC20Token, TokenHolder {
         @return true if the transfer was successful, throws if it wasn't
     */
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
-        if ( (isTransferAllowed() == true || _from == taloCrowdTokenSaleAddress || approvedTransferringList[_from])
-                && !lockedTransferringList[_from] ) {
+        if ( isReleasedToPublic 
+                ||  ( (isTransferAllowed() == true || _from == taloCrowdTokenSaleAddress || approvedTransferringList[_from])
+                    && !lockedTransferringList[_from] ) ) {
             assert(super.transferFrom(_from, _to, _value));
             return true;
         }
@@ -549,7 +548,7 @@ contract TALOToken is ERC20Token, TokenHolder {
         - After 720 days: 12.5% more
         @return true if successful, throws if not
     */
-    function releaseTALOTeamTokens() safeTimelock ownerOnly public returns(bool success) {
+    function releaseTALOTeamTokens() threeMonthTimeLock ownerOnly public returns(bool success) {
         require(totalAllocatedToTeam < taloTeamAllocation);
 
         uint256 taloTeamAlloc = taloTeamAllocation / 1000;
@@ -572,7 +571,7 @@ contract TALOToken is ERC20Token, TokenHolder {
 
         @return true if successful, throws if not
     */
-    function releaseTALOAdvisorTokens() advisorTimelock ownerOnly public returns(bool success) {
+    function releaseTALOAdvisorTokens() sixMonthTimeLock ownerOnly public returns(bool success) {
         require(totalAllocatedToAdvisors == 0);
         for (uint256 i = 0; i < advisorAddresses.length; ++i) {
             address advisorAddress = advisorAddresses[i];
@@ -663,11 +662,18 @@ contract TALOToken is ERC20Token, TokenHolder {
     }
 
     /**
-        @dev Function to allow transfers
+        @dev Function to allow early transfers for all accounts
         can only be called by the owner of the contract
-        Transfers will be allowed regardless after the crowdfund end time.
     */
-    function allowTransfers() ownerOnly public {
+    function allowEarlyTransfers() ownerOnly public {
+        isEarlyTransferringAllowed = true;
+    }
+    
+    /**
+        @dev Function to release token to all public
+        can only be called by the owner of the contract
+    */
+    function releaseTokenToPublic() sixMonthTimeLock ownerOnly public {
         isReleasedToPublic = true;
     }
 
@@ -676,7 +682,7 @@ contract TALOToken is ERC20Token, TokenHolder {
         Transfers are forbidden before the end of the crowdfund
     */
     function isTransferAllowed() internal constant returns(bool) {
-        if (now > crowdTokenSaleEndTime || isReleasedToPublic == true) {
+        if (now > crowdTokenSaleEndTime || isEarlyTransferringAllowed == true) {
             return true;
         }
         return false;
